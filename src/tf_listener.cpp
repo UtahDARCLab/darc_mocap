@@ -36,6 +36,18 @@ std_msgs::Float32 yaw_glob;
 geometry_msgs::Vector3 rcurr;
 geometry_msgs::Vector3 rdotcurr;
 
+float xVelOld = 0.0;
+float yVelOld = 0.0;
+float zVelOld = 0.0;
+float xVelNew, yVelNew, zVelNew;
+
+float rxVelOld = 0.0;
+float ryVelOld = 0.0; 
+float rzVelOld = 0.0;
+float rxVelNew, ryVelNew, rzVelNew;
+
+float alpha = 0.5;
+
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "mocap");
@@ -52,7 +64,7 @@ int main(int argc, char** argv)
 
     tf::TransformListener listener;
     tf::StampedTransform stamped;
-    int l_rate = 50;
+    int l_rate = 100;
     ros::Rate loop_rate(l_rate);
 
     std::vector<double> plast(3);
@@ -75,9 +87,17 @@ int main(int argc, char** argv)
 	
 		//Compute Velocities and store position for next step
 		//(distance)*(Hz) = distance/second
-		vcurr.x = l_rate * (pcurr.x - plast[0]);
-		vcurr.y = l_rate * (pcurr.y - plast[1]);
-		vcurr.z = l_rate * (pcurr.z - plast[2]);
+		xVelNew = l_rate * (pcurr.x - plast[0]);
+		yVelNew = l_rate * (pcurr.y - plast[1]);
+		zVelNew = l_rate * (pcurr.z - plast[2]);
+		
+		vcurr.x = alpha*xVelNew + (1.0-alpha)*xVelOld;
+		vcurr.y = alpha*yVelNew + (1.0-alpha)*yVelOld;
+		vcurr.z = alpha*zVelNew + (1.0-alpha)*zVelOld;
+		
+		xVelOld = vcurr.x;
+		yVelOld = vcurr.y;
+		zVelOld = vcurr.z;
 
 		plast[0] = pcurr.x;
 		plast[1] = pcurr.y;
@@ -104,11 +124,21 @@ int main(int argc, char** argv)
 		Rot(1,2) = -cos(euler_angles[pitch])*sin(euler_angles[roll]);
 		Rot(2,2) = cos(euler_angles[pitch])*cos(euler_angles[roll]);
 	
-		rdotcurr.x = l_rate * (rcurr.x - rlast[0]);
-		rdotcurr.y = l_rate * (rcurr.y - rlast[1]);
-		rdotcurr.z = l_rate * (rcurr.z - rlast[2]);
-
-		rlast[0] = rcurr.x; rlast[1] = rcurr.y; rlast[2] = rcurr.z;
+	    rxVelNew = l_rate * (rcurr.x - rlast[0]);
+	    ryVelNew = l_rate * (rcurr.y - rlast[1]);
+		rzVelNew = l_rate * (rcurr.z - rlast[2]);
+		
+		rdotcurr.x = alpha * rxVelNew + (1.0 - alpha) * rxVelOld;
+		rdotcurr.y = alpha * ryVelNew + (1.0 - alpha) * ryVelOld;
+		rdotcurr.z = alpha * rzVelNew + (1.0 - alpha) * rzVelOld;
+		
+		rxVelOld = rdotcurr.x;
+		ryVelOld = rdotcurr.y;
+		rzVelOld = rdotcurr.z;
+		
+        rlast[0] = rcurr.x; 
+        rlast[1] = rcurr.y; 
+        rlast[2] = rcurr.z;
 
 		double theta = acos(((Rot(0,0)+Rot(1,1)+Rot(2,2))-1)*0.5);
 		rcurr.x = (0.5*theta/sin(theta))*(Rot(2,1) - Rot(1,2));
