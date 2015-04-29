@@ -144,6 +144,10 @@ int main(int argc, char** argv)
 		rcurr.x = (0.5*theta/sin(theta))*(Rot(2,1) - Rot(1,2));
 		rcurr.y = (0.5*theta/sin(theta))*(Rot(0,2) - Rot(2,0));
 		rcurr.z = (0.5*theta/sin(theta))*(Rot(1,0) - Rot(0,1));
+		if (isnan(rcurr.z))
+		{
+		rcurr.z = 0.0;
+		}
 
 		//Intrinsic RPY - Matt
 		//roll_glob.data = atan2(Rot(2,1),Rot(2,2));
