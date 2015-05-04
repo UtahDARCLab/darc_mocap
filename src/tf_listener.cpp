@@ -18,6 +18,8 @@ Edit: Matt Beall - Global Yaw and velocity computation
 #include <std_msgs/Float32.h>
 #include <math.h>
 #include <Eigen/Dense>
+#include <string>
+#include <iostream>
 
 #define _USE_MATH_DEFINES
 
@@ -31,8 +33,6 @@ using namespace std;
 geometry_msgs::Vector3 pcurr;
 geometry_msgs::Vector3 vcurr;
 std_msgs::Float32 yaw_glob;
-//std_msgs::Float32 roll_glob;
-//std_msgs::Float32 pitch_glob;
 geometry_msgs::Vector3 rcurr;
 geometry_msgs::Vector3 rdotcurr;
 
@@ -48,23 +48,33 @@ float rxVelNew, ryVelNew, rzVelNew;
 
 float alpha = 0.5;
 
+int numQuads;
+
+std::string mocap_name;
+
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "mocap");
     ros::NodeHandle node;
-       
+
+    if(node.getParam("mocap_name",mocap_name))
+    {;}
+    else
+    {
+        ROS_ERROR("No mocap ID");
+        return -1;
+    }
+        
     ros::Publisher pcurr_pub = node.advertise<geometry_msgs::Vector3>("current_position",1);
     ros::Publisher vcurr_pub = node.advertise<geometry_msgs::Vector3>("current_velocity",1);
-    
     ros::Publisher yaw_pub = node.advertise<std_msgs::Float32>("current_yaw",1);
-	ros::Publisher r_pub = node.advertise<geometry_msgs::Vector3>("current_r",1);
+    ros::Publisher r_pub = node.advertise<geometry_msgs::Vector3>("current_r",1);
 	ros::Publisher rdot_pub = node.advertise<geometry_msgs::Vector3>("current_rdot",1);
-    //ros::Publisher roll_pub = node.advertise<std_msgs::Float32>("current_roll",1);
-    //ros::Publisher pitch_pub = node.advertise<std_msgs::Float32>("current_pitch",1);
-
+	
     tf::TransformListener listener;
     tf::StampedTransform stamped;
-    int l_rate = 100;
+    
+    int l_rate = 500;
     ros::Rate loop_rate(l_rate);
 
     std::vector<double> plast(3);
@@ -78,9 +88,11 @@ int main(int argc, char** argv)
 	rlast[2]=0;
 
     while(ros::ok())
-    {
-	listener.waitForTransform("optitrak", "quad", ros::Time(0), ros::Duration(2));
-      	listener.lookupTransform("optitrak", "quad",  ros::Time(0), stamped);
+    {      
+    	listener.waitForTransform("optitrak", mocap_name, ros::Time(0), ros::Duration(2));
+      	listener.lookupTransform("optitrak", mocap_name,  ros::Time(0), stamped);
+      	//listener.waitForTransform("optitrak", "quad", ros::Time(0), ros::Duration(2));
+      	//listener.lookupTransform("optitrak", "quad",  ros::Time(0), stamped);
         pcurr.x = stamped.getOrigin().getY();
         pcurr.y = -stamped.getOrigin().getX();
         pcurr.z = stamped.getOrigin().getZ();
@@ -146,7 +158,7 @@ int main(int argc, char** argv)
 		rcurr.z = (0.5*theta/sin(theta))*(Rot(1,0) - Rot(0,1));
 		if (isnan(rcurr.z))
 		{
-		rcurr.z = 0.0;
+			rcurr.z = 0.0;
 		}
 
 		//Intrinsic RPY - Matt
@@ -157,9 +169,6 @@ int main(int argc, char** argv)
 		r_pub.publish(rcurr);
 		rdot_pub.publish(rdotcurr);
 		yaw_pub.publish(yaw_glob);
-
-		//roll_pub.publish(roll_glob);
-		//pitch_pub.publish(pitch_glob);
 
 		ros::spinOnce();
 		loop_rate.sleep();
